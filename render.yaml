@@ -1,0 +1,20 @@
+# Render.com Blueprint
+# This file configures automatic deployment of the backend
+# Frontend will be deployed separately on Vercel
+
+services:
+  - type: web
+    name: baniere-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: COURSES_JSON_PATH
+        value: ../courses.json
+    healthCheckPath: /health
