@@ -34,11 +34,11 @@ function extractDays(meetingTime: BannerMeetingTime): string[] {
  * Extract cycle information from course title
  * Returns 1 for "Ciclo 1 de 8 semanas", 2 for "Ciclo 2 de 8 semanas", undefined otherwise
  */
-function extractCycle(courseTitle: string): 1 | 2 | undefined {
-  if (courseTitle.includes('Ciclo 1 de 8 semanas')) {
+function extractCycle(partOfTerm: string): 1 | 2 | undefined {
+  if (partOfTerm === '8A') {
     return 1;
   }
-  if (courseTitle.includes('Ciclo 2 de 8 semanas')) {
+  if (partOfTerm === '8B') {
     return 2;
   }
   return undefined;
@@ -96,14 +96,14 @@ export function normalizeCourse(bannerCourse: BannerCourse): NormalizedCourse {
   const creditHours = bannerCourse.creditHours ?? bannerCourse.creditHourLow;
   const faculty = normalizeFaculty(bannerCourse);
   const meetingTimes = normalizeMeetingTimes(bannerCourse);
-  const cycle = extractCycle(bannerCourse.courseTitle);
+  const cycle = extractCycle(bannerCourse.partOfTerm);
   
   const normalized: NormalizedCourse = {
     id: bannerCourse.id,
     term: bannerCourse.term,
     courseReferenceNumber: bannerCourse.courseReferenceNumber,
     subjectCourse: bannerCourse.subjectCourse,
-    courseTitle: bannerCourse.courseTitle,
+    courseTitle: he.decode(bannerCourse.courseTitle.trim()),
     subject: bannerCourse.subject,
     courseNumber: bannerCourse.courseNumber,
     section: bannerCourse.sequenceNumber,

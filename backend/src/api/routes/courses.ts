@@ -8,9 +8,9 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
-import { BannerResponse } from '../../models/Course';
 import { normalizeCourses } from '../../services/normalizer';
 import { groupSectionsByCourse } from '../../services/filterEngine';
+import { textContainsQuery } from '../../utils/textUtils';
 import { config } from '../../config';
 
 const router = Router();
@@ -84,7 +84,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/search', async (req: Request, res: Response) => {
   try {
-    const query = (req.query.q as string || '').toUpperCase().trim();
+    const query = (req.query.q as string || '').trim();
     
     if (!query || query.length < 2) {
       return res.status(400).json({
@@ -95,10 +95,10 @@ router.get('/search', async (req: Request, res: Response) => {
     
     const bannerData = await loadCourses();
     
-    // Search by subjectCourse or title
+    // Search by subjectCourse or title (accent-insensitive)
     const matches = bannerData.data.filter(course =>
-      course.subjectCourse.includes(query) ||
-      course.courseTitle.toUpperCase().includes(query)
+      course.subjectCourse.toUpperCase().includes(query.toUpperCase()) ||
+      textContainsQuery(course.courseTitle, query)
     );
     
     const normalized = normalizeCourses(matches);
