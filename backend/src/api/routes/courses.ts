@@ -12,6 +12,7 @@ import { normalizeCourses } from '../../services/normalizer';
 import { groupSectionsByCourse } from '../../services/filterEngine';
 import { textContainsQuery } from '../../utils/textUtils';
 import { config } from '../../config';
+import { BannerResponse, BannerCourse } from '../../models/Course';
 
 const router = Router();
 
@@ -50,15 +51,15 @@ router.get('/', async (req: Request, res: Response) => {
     const { term, subject, openOnly } = req.query;
     
     if (term) {
-      courses = courses.filter(c => c.term === term);
+      courses = courses.filter((c: BannerCourse) => c.term === term);
     }
     
     if (subject) {
-      courses = courses.filter(c => c.subject === subject);
+      courses = courses.filter((c: BannerCourse) => c.subject === subject);
     }
     
     if (openOnly === 'true') {
-      courses = courses.filter(c => c.openSection);
+      courses = courses.filter((c: BannerCourse) => c.openSection);
     }
     
     const normalized = normalizeCourses(courses);
@@ -96,7 +97,7 @@ router.get('/search', async (req: Request, res: Response) => {
     const bannerData = await loadCourses();
     
     // Search by subjectCourse or title (accent-insensitive)
-    const matches = bannerData.data.filter(course =>
+    const matches = bannerData.data.filter((course: BannerCourse) =>
       course.subjectCourse.toUpperCase().includes(query.toUpperCase()) ||
       textContainsQuery(course.courseTitle, query)
     );
@@ -139,7 +140,7 @@ router.get('/:code', async (req: Request, res: Response) => {
     const code = req.params.code.toUpperCase();
     const bannerData = await loadCourses();
     
-    const sections = bannerData.data.filter(c => c.subjectCourse === code);
+    const sections = bannerData.data.filter((c: BannerCourse) => c.subjectCourse === code);
     
     if (sections.length === 0) {
       return res.status(404).json({
@@ -172,7 +173,7 @@ router.get('/subjects/list', async (req: Request, res: Response) => {
   try {
     const bannerData = await loadCourses();
     
-    const subjects = new Set(bannerData.data.map(c => c.subject));
+    const subjects = new Set(bannerData.data.map((c: BannerCourse) => c.subject));
     const subjectList = Array.from(subjects).sort();
     
     res.json({
