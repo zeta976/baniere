@@ -8,6 +8,7 @@
 import { Router, Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
+import he from 'he';
 import { normalizeCourses } from '../../services/normalizer';
 import { groupSectionsByCourse } from '../../services/filterEngine';
 import { textContainsQuery } from '../../utils/textUtils';
@@ -97,10 +98,14 @@ router.get('/search', async (req: Request, res: Response) => {
     const bannerData = await loadCourses();
     
     // Search by subjectCourse or title (accent-insensitive)
-    const matches = bannerData.data.filter((course: BannerCourse) =>
-      course.subjectCourse.toUpperCase().includes(query.toUpperCase()) ||
-      textContainsQuery(course.courseTitle, query)
-    );
+    // Decode HTML entities first, then apply accent-insensitive search
+    const matches = bannerData.data.filter((course: BannerCourse) => {
+      const decodedTitle = he.decode(course.courseTitle);
+      return (
+        course.subjectCourse.toUpperCase().includes(query.toUpperCase()) ||
+        textContainsQuery(decodedTitle, query)
+      );
+    });
     
     const normalized = normalizeCourses(matches);
     
