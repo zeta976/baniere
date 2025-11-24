@@ -27,6 +27,18 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
     const blocks: Array<{
       course: Course;
       start: number;
+      end: number;
+      duration: number;
+      color: string;
+      lane: number;
+      totalLanes: number;
+    }> = [];
+
+    // First, collect all blocks with their time ranges
+    const rawBlocks: Array<{
+      course: Course;
+      start: number;
+      end: number;
       duration: number;
       color: string;
     }> = [];
@@ -38,13 +50,63 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
           const end = timeToMinutes(meeting.endTime);
           const duration = end - start;
 
-          blocks.push({
+          rawBlocks.push({
             course: section,
             start,
+            end,
             duration,
             color: courseColors.get(section.subjectCourse) || COLORS[0]
           });
         }
+      });
+    });
+
+    // Sort blocks by start time, then by end time
+    rawBlocks.sort((a, b) => a.start - b.start || a.end - b.end);
+
+    // Assign lanes to overlapping blocks
+    const lanes: Array<Array<typeof rawBlocks[0]>> = [];
+    
+    rawBlocks.forEach((block) => {
+      // Find the first lane where this block doesn't overlap with the last block
+      let assignedLane = -1;
+      for (let i = 0; i < lanes.length; i++) {
+        const lastBlockInLane = lanes[i][lanes[i].length - 1];
+        // Blocks overlap if start < otherEnd AND end > otherStart
+        if (block.start >= lastBlockInLane.end) {
+          assignedLane = i;
+          break;
+        }
+      }
+      
+      // If no suitable lane found, create a new one
+      if (assignedLane === -1) {
+        assignedLane = lanes.length;
+        lanes.push([]);
+      }
+      
+      lanes[assignedLane].push(block);
+    });
+
+    // Calculate total lanes needed for each time slot
+    const getMaxOverlappingLanes = (start: number, end: number): number => {
+      let maxLanes = 0;
+      lanes.forEach((lane) => {
+        const hasOverlap = lane.some((b) => b.start < end && b.end > start);
+        if (hasOverlap) maxLanes++;
+      });
+      return maxLanes;
+    };
+
+    // Build final blocks with lane information
+    lanes.forEach((lane, laneIndex) => {
+      lane.forEach((block) => {
+        const totalLanes = getMaxOverlappingLanes(block.start, block.end);
+        blocks.push({
+          ...block,
+          lane: laneIndex,
+          totalLanes
+        });
       });
     });
 
@@ -89,27 +151,33 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
               {getBlocksForDay(day).map((block, idx) => {
                 const topOffset = ((block.start - 7 * 60) / 60) * 64; // 64px per hour
                 const height = (block.duration / 60) * 64;
+                
+                // Calculate width and position based on lanes
+                const widthPercent = 100 / block.totalLanes;
+                const leftPercent = (block.lane / block.totalLanes) * 100;
 
                 return (
                   <div
                     key={idx}
-                    className={`absolute left-0 right-0 mx-1 px-2 py-1 rounded border ${block.color} overflow-hidden`}
+                    className={`absolute px-2 py-1 rounded border ${block.color} overflow-hidden`}
                     style={{
                       top: `${topOffset}px`,
-                      height: `${height}px`
+                      height: `${height}px`,
+                      left: `${leftPercent}%`,
+                      width: `${widthPercent}%`
                     }}
                   >
                     <div className="text-xs font-semibold flex items-center justify-between">
-                      <span>{block.course.subjectCourse}</span>
+                      <span className="truncate">{block.course.subjectCourse}</span>
                       {block.course.cycle && (
-                        <span className="text-[10px] bg-white bg-opacity-70 px-1 rounded">
+                        <span className="text-[10px] bg-white bg-opacity-70 px-1 rounded flex-shrink-0 ml-1">
                           C{block.course.cycle}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs">Sec. {block.course.section}</div>
+                    <div className="text-xs truncate">Sec. {block.course.section}</div>
                     {block.course.meetingTimes[0]?.room && (
-                      <div className="text-xs">{block.course.meetingTimes[0].room}</div>
+                      <div className="text-xs truncate">{block.course.meetingTimes[0].room}</div>
                     )}
                   </div>
                 );
