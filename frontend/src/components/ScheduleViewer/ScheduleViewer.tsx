@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Schedule } from '../../types/schedule';
 import WeeklyGrid from './WeeklyGrid';
 import Loading from '../common/Loading';
-import { groupEquivalentSchedules, GroupedSchedule } from '../../utils/scheduleGrouping';
+import { groupEquivalentSchedules } from '../../utils/scheduleGrouping';
 
 interface ScheduleViewerProps {
   schedules: Schedule[];
