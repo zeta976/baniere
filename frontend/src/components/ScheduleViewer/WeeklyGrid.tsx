@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Schedule } from '../../types/schedule';
 import { Course } from '../../types/course';
 import { DAYS, DAY_ABBR_ES } from '../../types/filter';
 import { timeToMinutes } from '../../utils/timeFormatter';
 import CourseDetailsModal from './CourseDetailsModal';
+import SectionSelectorModal from './SectionSelectorModal';
+import { GroupedSchedule, GroupedCourseSlot } from '../../utils/scheduleGrouping';
 
 interface WeeklyGridProps {
-  schedule: Schedule;
+  groupedSchedule: GroupedSchedule;
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7 AM to 8 PM
@@ -19,16 +20,33 @@ const COLORS = [
   'bg-indigo-100 border-indigo-300 text-indigo-900',
 ];
 
-export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
+export default function WeeklyGrid({ groupedSchedule }: WeeklyGridProps) {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectorSlot, setSelectorSlot] = useState<GroupedCourseSlot | null>(null);
   
   const courseColors = new Map<string, string>();
-  schedule.sections.forEach((section, idx) => {
-    courseColors.set(section.subjectCourse, COLORS[idx % COLORS.length]);
+  groupedSchedule.sections.forEach((slot, idx) => {
+    courseColors.set(slot.subjectCourse, COLORS[idx % COLORS.length]);
   });
+
+  const handleBlockClick = (slot: GroupedCourseSlot) => {
+    if (slot.sections.length === 1) {
+      // Only one section, show details directly
+      setSelectedCourse(slot.sections[0]);
+    } else {
+      // Multiple sections, show selector first
+      setSelectorSlot(slot);
+    }
+  };
+
+  const handleSectionSelect = (section: Course) => {
+    setSelectorSlot(null);
+    setSelectedCourse(section);
+  };
 
   const getBlocksForDay = (day: string) => {
     const blocks: Array<{
+      slot: GroupedCourseSlot;
       course: Course;
       start: number;
       end: number;
@@ -40,6 +58,7 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
 
     // First, collect all blocks with their time ranges
     const rawBlocks: Array<{
+      slot: GroupedCourseSlot;
       course: Course;
       start: number;
       end: number;
@@ -47,7 +66,8 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
       color: string;
     }> = [];
 
-    schedule.sections.forEach((section) => {
+    groupedSchedule.sections.forEach((slot) => {
+      const section = slot.displaySection;
       section.meetingTimes.forEach((meeting) => {
         if (meeting.days.includes(day) && meeting.beginTime !== 'TBA') {
           const start = timeToMinutes(meeting.beginTime);
@@ -55,6 +75,7 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
           const duration = end - start;
 
           rawBlocks.push({
+            slot,
             course: section,
             start,
             end,
@@ -170,18 +191,31 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`
                     }}
-                    onClick={() => setSelectedCourse(block.course)}
-                    title="Click para ver detalles"
+                    onClick={() => handleBlockClick(block.slot)}
+                    title={block.slot.sections.length > 1 
+                      ? `Click para ver ${block.slot.sections.length} secciones disponibles` 
+                      : "Click para ver detalles"}
                   >
                     <div className="text-xs font-semibold flex items-center justify-between">
                       <span className="truncate">{block.course.subjectCourse}</span>
-                      {block.course.cycle && (
-                        <span className="text-[10px] bg-white bg-opacity-70 px-1 rounded flex-shrink-0 ml-1">
-                          C{block.course.cycle}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                        {block.course.cycle && (
+                          <span className="text-[10px] bg-white bg-opacity-70 px-1 rounded">
+                            C{block.course.cycle}
+                          </span>
+                        )}
+                        {block.slot.sections.length > 1 && (
+                          <span className="text-[10px] bg-purple-200 text-purple-800 px-1 rounded font-bold">
+                            {block.slot.sections.length}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-xs truncate">Sec. {block.course.section}</div>
+                    <div className="text-xs truncate">
+                      {block.slot.sections.length > 1 
+                        ? `${block.slot.sections.length} secciones`
+                        : `Sec. ${block.course.section}`}
+                    </div>
                     {block.course.meetingTimes[0]?.room && (
                       <div className="text-xs truncate">{block.course.meetingTimes[0].room}</div>
                     )}
@@ -192,6 +226,15 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
           ))}
         </div>
       </div>
+      
+      {/* Section Selector Modal */}
+      {selectorSlot && (
+        <SectionSelectorModal 
+          sections={selectorSlot.sections}
+          onSelect={handleSectionSelect}
+          onClose={() => setSelectorSlot(null)}
+        />
+      )}
       
       {/* Course Details Modal */}
       <CourseDetailsModal 
