@@ -35,13 +35,15 @@ function getSchedulePattern(schedule: Schedule): string {
   
   sortedSections.forEach((section) => {
     // For each course, create a pattern of its meeting times
+    // NOTE: We ignore building/room because different sections can have different rooms
+    // but the same time slots, and we want to group those
     const coursePattern: string[] = [];
     
     section.meetingTimes.forEach((meeting) => {
       // Sort days for consistency
       const days = [...meeting.days].sort().join(',');
       coursePattern.push(
-        `${section.subjectCourse}:${days}:${meeting.beginTime}-${meeting.endTime}:${meeting.building}${meeting.room}`
+        `${section.subjectCourse}:${days}:${meeting.beginTime}-${meeting.endTime}`
       );
     });
     
