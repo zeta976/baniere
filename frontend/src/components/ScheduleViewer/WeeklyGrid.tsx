@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Schedule } from '../../types/schedule';
 import { Course } from '../../types/course';
 import { DAYS, DAY_ABBR_ES } from '../../types/filter';
 import { timeToMinutes } from '../../utils/timeFormatter';
+import CourseDetailsModal from './CourseDetailsModal';
 
 interface WeeklyGridProps {
   schedule: Schedule;
@@ -18,6 +20,8 @@ const COLORS = [
 ];
 
 export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  
   const courseColors = new Map<string, string>();
   schedule.sections.forEach((section, idx) => {
     courseColors.set(section.subjectCourse, COLORS[idx % COLORS.length]);
@@ -159,13 +163,15 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
                 return (
                   <div
                     key={idx}
-                    className={`absolute px-2 py-1 rounded border ${block.color} overflow-hidden`}
+                    className={`absolute px-2 py-1 rounded border ${block.color} overflow-hidden cursor-pointer hover:shadow-lg hover:z-10 transition-shadow`}
                     style={{
                       top: `${topOffset}px`,
                       height: `${height}px`,
                       left: `${leftPercent}%`,
                       width: `${widthPercent}%`
                     }}
+                    onClick={() => setSelectedCourse(block.course)}
+                    title="Click para ver detalles"
                   >
                     <div className="text-xs font-semibold flex items-center justify-between">
                       <span className="truncate">{block.course.subjectCourse}</span>
@@ -186,6 +192,12 @@ export default function WeeklyGrid({ schedule }: WeeklyGridProps) {
           ))}
         </div>
       </div>
+      
+      {/* Course Details Modal */}
+      <CourseDetailsModal 
+        course={selectedCourse}
+        onClose={() => setSelectedCourse(null)}
+      />
     </div>
   );
 }
