@@ -26,6 +26,13 @@ export interface ScheduleGenerationRequest {
   maxResults?: number;
 }
 
+export interface TimeBlock {
+  day: string; // "monday", "tuesday", etc.
+  startTime: string; // "HHMM" format (e.g., "0800")
+  endTime: string; // "HHMM" format (e.g., "1400")
+  label?: string; // Optional description
+}
+
 export interface ScheduleFilters {
   maxEndTime?: string; // "1800" = 6:00 PM
   minStartTime?: string; // "0800" = 8:00 AM
@@ -39,6 +46,7 @@ export interface ScheduleFilters {
   maxGapMinutes?: number; // Max gap between classes
   preferredGapTime?: string; // "1200" = prefer lunch break around noon
   specificDayFilters?: DayFilter[]; // Per-day constraints
+  timeBlocks?: TimeBlock[]; // Blocked time periods to avoid
 }
 
 export interface DayFilter {

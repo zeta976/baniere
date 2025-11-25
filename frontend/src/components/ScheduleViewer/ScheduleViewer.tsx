@@ -1,22 +1,69 @@
 import { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Ban, Star } from 'lucide-react';
 import { Schedule } from '../../types/schedule';
 import WeeklyGrid from './WeeklyGrid';
 import Loading from '../common/Loading';
+import AddTimeBlockModal from './AddTimeBlockModal';
 import { groupEquivalentSchedules } from '../../utils/scheduleGrouping';
+import { TimeBlock } from '../../types/timeBlock';
+
+import { GroupedSchedule } from '../../utils/scheduleGrouping';
 
 interface ScheduleViewerProps {
   schedules: Schedule[];
   isLoading: boolean;
+  timeBlocks?: TimeBlock[];
+  onTimeBlocksChange?: (blocks: TimeBlock[]) => void;
+  onSaveSchedule?: (groupedSchedule: GroupedSchedule) => void;
+  onUnsaveSchedule?: (scheduleId: string) => void;
+  isSaved?: (scheduleId: string) => boolean;
 }
 
-export default function ScheduleViewer({ schedules, isLoading }: ScheduleViewerProps) {
+export default function ScheduleViewer({ 
+  schedules, 
+  isLoading,
+  timeBlocks = [],
+  onTimeBlocksChange,
+  onSaveSchedule,
+  onUnsaveSchedule,
+  isSaved
+}: ScheduleViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAddBlockModal, setShowAddBlockModal] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<TimeBlock | undefined>();
 
   // Group equivalent schedules
   const groupedSchedules = useMemo(() => {
     return groupEquivalentSchedules(schedules);
   }, [schedules]);
+
+  const handleAddTimeBlock = (blocks: TimeBlock[]) => {
+    if (onTimeBlocksChange) {
+      onTimeBlocksChange([...timeBlocks, ...blocks]);
+    }
+  };
+
+  const handleRemoveTimeBlock = (blockId: string) => {
+    if (onTimeBlocksChange) {
+      onTimeBlocksChange(timeBlocks.filter(b => b.id !== blockId));
+    }
+  };
+
+  const handleEditTimeBlock = (updatedBlock: TimeBlock) => {
+    if (onTimeBlocksChange) {
+      onTimeBlocksChange(timeBlocks.map(b => b.id === updatedBlock.id ? updatedBlock : b));
+    }
+  };
+
+  const openEditModal = (block: TimeBlock) => {
+    setEditingBlock(block);
+    setShowAddBlockModal(true);
+  };
+
+  const closeModal = () => {
+    setShowAddBlockModal(false);
+    setEditingBlock(undefined);
+  };
 
   // Reset index when schedules change
   useEffect(() => {
@@ -45,6 +92,17 @@ export default function ScheduleViewer({ schedules, isLoading }: ScheduleViewerP
   }
 
   const currentGroupedSchedule = groupedSchedules[currentIndex];
+  const isCurrentSaved = isSaved ? isSaved(currentGroupedSchedule?.id) : false;
+
+  const handleToggleSave = () => {
+    if (!currentGroupedSchedule) return;
+    
+    if (isCurrentSaved) {
+      onUnsaveSchedule?.(currentGroupedSchedule.id);
+    } else {
+      onSaveSchedule?.(currentGroupedSchedule);
+    }
+  };
   
   // Count total sections across all courses
   const totalAlternativeSections = currentGroupedSchedule.sections.reduce(
@@ -82,6 +140,34 @@ export default function ScheduleViewer({ schedules, isLoading }: ScheduleViewerP
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Save/Unsave Button */}
+            {onSaveSchedule && currentGroupedSchedule && (
+              <button
+                onClick={handleToggleSave}
+                className={`px-3 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${
+                  isCurrentSaved
+                    ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                    : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                }`}
+                title={isCurrentSaved ? 'Quitar de guardados' : 'Guardar horario'}
+              >
+                <Star className={`w-4 h-4 ${isCurrentSaved ? 'fill-current' : ''}`} />
+                {isCurrentSaved ? 'Guardado' : 'Guardar'}
+              </button>
+            )}
+            
+            {/* Time Block Controls */}
+            <button
+              onClick={() => setShowAddBlockModal(true)}
+              className="px-3 py-2 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors"
+              title="Bloquear franja horaria"
+            >
+              <Ban className="w-4 h-4" />
+              Bloquear Franja
+            </button>
+            
+            <div className="border-l border-gray-300 h-8 mx-2"></div>
+            
             <button
               onClick={() => setCurrentIndex(Math.max(0, currentIndex - 1))}
               disabled={currentIndex === 0}
@@ -102,8 +188,22 @@ export default function ScheduleViewer({ schedules, isLoading }: ScheduleViewerP
 
       {/* Grid */}
       <div className="p-4">
-        <WeeklyGrid groupedSchedule={currentGroupedSchedule} />
+        <WeeklyGrid 
+          groupedSchedule={currentGroupedSchedule} 
+          timeBlocks={timeBlocks}
+          onRemoveTimeBlock={handleRemoveTimeBlock}
+          onEditTimeBlock={openEditModal}
+        />
       </div>
+      
+      {/* Add Time Block Modal */}
+      <AddTimeBlockModal 
+        isOpen={showAddBlockModal}
+        onClose={closeModal}
+        onAddBlock={handleAddTimeBlock}
+        editBlock={editingBlock}
+        onEditBlock={handleEditTimeBlock}
+      />
     </div>
   );
 }

@@ -1,21 +1,62 @@
-import { useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Calendar, Star } from 'lucide-react';
 import CourseSearch from './components/CourseSearch/CourseSearch';
 import FilterPanel from './components/FilterPanel/FilterPanel';
 import ScheduleViewer from './components/ScheduleViewer/ScheduleViewer';
 import { useFilters } from './hooks/useFilters';
 import { useScheduleGenerator } from './hooks/useScheduleGenerator';
 import { Schedule } from './types/schedule';
+import { TimeBlock } from './types/timeBlock';
+import { useSavedSchedules } from './hooks/useSavedSchedules';
+import SavedSchedulesModal from './components/SavedSchedules/SavedSchedulesModal';
+
+const SELECTED_COURSES_KEY = 'baniere_selected_courses';
 
 function App() {
-  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+  // Load selected courses from localStorage
+  const [selectedCourses, setSelectedCourses] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem(SELECTED_COURSES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        console.log(`📚 Loaded ${parsed.length} selected courses from localStorage`);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('Error loading selected courses:', error);
+    }
+    return [];
+  });
+  
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
+  const [showSavedModal, setShowSavedModal] = useState(false);
   const { filters: filtersState } = useFilters();
   const generator = useScheduleGenerator();
+  const isFirstRender = useRef(true);
+  const {
+    savedSchedules,
+    saveSchedule,
+    unsaveSchedule,
+    isSaved,
+    clearAllSaved,
+    count: savedCount
+  } = useSavedSchedules();
 
-  const handleGenerate = () => {
+  // Save selected courses to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(SELECTED_COURSES_KEY, JSON.stringify(selectedCourses));
+    } catch (error) {
+      console.error('Error saving selected courses:', error);
+    }
+  }, [selectedCourses]);
+
+  const handleGenerate = (silent = false) => {
     if (selectedCourses.length === 0) {
-      alert('Por favor selecciona al menos un curso');
+      if (!silent) {
+        alert('Por favor selecciona al menos un curso');
+      }
       return;
     }
 
@@ -31,11 +72,27 @@ function App() {
       console.error('Error reading fresh filters:', error);
     }
 
-    console.log('🔍 Generating schedules with filters:', JSON.stringify(freshFilters, null, 2));
-    console.log('📚 Selected courses:', selectedCourses);
+    // Add timeBlocks to filters
+    const filtersWithBlocks = {
+      ...freshFilters,
+      timeBlocks: timeBlocks.map(block => ({
+        day: block.day,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        label: block.label
+      }))
+    };
+
+    if (!silent) {
+      console.log('🔍 Generating schedules with filters:', JSON.stringify(filtersWithBlocks, null, 2));
+      console.log('📚 Selected courses:', selectedCourses);
+      console.log('🚫 Time blocks:', timeBlocks);
+    } else {
+      console.log('🔄 Auto-regenerating with updated time blocks...');
+    }
 
     generator.mutate(
-      { courses: selectedCourses, filters: freshFilters, maxResults: 500 },
+      { courses: selectedCourses, filters: filtersWithBlocks, maxResults: 500 },
       {
         onSuccess: (data) => {
           console.log(`✅ Received ${data.schedules.length} schedules`);
@@ -45,14 +102,45 @@ function App() {
     );
   };
 
+  // Auto-regenerate when timeBlocks change (but not on first render)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    // Only auto-regenerate if we already have schedules
+    if (schedules.length > 0 && selectedCourses.length > 0) {
+      console.log('⚡ Time blocks changed, auto-regenerating...');
+      handleGenerate(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeBlocks]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-8 h-8 text-primary-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Baniere</h1>
-            <span className="text-sm text-gray-500">Generador de Horarios</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-8 h-8 text-primary-600" />
+              <h1 className="text-3xl font-bold text-gray-900">Baniere</h1>
+              <span className="text-sm text-gray-500">Generador de Horarios</span>
+            </div>
+            
+            {/* Saved Schedules Button */}
+            <button
+              onClick={() => setShowSavedModal(true)}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2 relative"
+            >
+              <Star className="w-5 h-5 fill-current" />
+              <span>Horarios Guardados</span>
+              {savedCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                  {savedCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -66,7 +154,7 @@ function App() {
             />
             <FilterPanel />
             <button
-              onClick={handleGenerate}
+              onClick={() => handleGenerate(false)}
               disabled={generator.isPending || selectedCourses.length === 0}
               className="w-full bg-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
@@ -75,10 +163,30 @@ function App() {
           </div>
 
           <div className="lg:col-span-2">
-            <ScheduleViewer schedules={schedules} isLoading={generator.isPending} />
+            <ScheduleViewer 
+              schedules={schedules} 
+              isLoading={generator.isPending}
+              timeBlocks={timeBlocks}
+              onTimeBlocksChange={setTimeBlocks}
+              onSaveSchedule={saveSchedule}
+              onUnsaveSchedule={unsaveSchedule}
+              isSaved={isSaved}
+            />
           </div>
         </div>
       </main>
+      
+      {/* Saved Schedules Modal */}
+      <SavedSchedulesModal 
+        isOpen={showSavedModal}
+        onClose={() => setShowSavedModal(false)}
+        savedSchedules={savedSchedules}
+        onRemove={unsaveSchedule}
+        onClearAll={clearAllSaved}
+        timeBlocks={timeBlocks}
+        onRemoveTimeBlock={(blockId) => setTimeBlocks(timeBlocks.filter(b => b.id !== blockId))}
+        onEditTimeBlock={(block) => setTimeBlocks(timeBlocks.map(b => b.id === block.id ? block : b))}
+      />
     </div>
   );
 }

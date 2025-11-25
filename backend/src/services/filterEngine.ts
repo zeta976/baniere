@@ -3,8 +3,26 @@
  */
 
 import { NormalizedCourse } from '../models/Course';
-import { ScheduleFilters } from '../models/Schedule';
+import { ScheduleFilters, TimeBlock } from '../models/Schedule';
 import { sectionToTimeIntervals } from './conflictChecker';
+
+/**
+ * Check if a meeting time conflicts with any time blocks
+ */
+function conflictsWithTimeBlocks(
+  day: string,
+  beginTime: string,
+  endTime: string,
+  timeBlocks: TimeBlock[]
+): boolean {
+  return timeBlocks.some(block => {
+    // Different day - no conflict
+    if (block.day !== day) return false;
+    
+    // Check for time overlap: start1 < end2 AND end1 > start2
+    return beginTime < block.endTime && endTime > block.startTime;
+  });
+}
 
 /**
  * Apply filters to a section to determine if it should be included
@@ -55,6 +73,14 @@ export function sectionPassesFilters(
     if (filters.freeDays?.includes(interval.day)) {
       console.log(`❌ Section ${section.subjectCourse}-${section.section} excluded: meets on ${interval.day} (free day)`);
       return false;
+    }
+    
+    // Time blocks - section cannot overlap with blocked times
+    if (filters.timeBlocks && filters.timeBlocks.length > 0) {
+      if (conflictsWithTimeBlocks(interval.day, interval.beginTime, interval.endTime, filters.timeBlocks)) {
+        console.log(`❌ Section ${section.subjectCourse}-${section.section} excluded: conflicts with time block on ${interval.day} (${interval.beginTime}-${interval.endTime})`);
+        return false;
+      }
     }
     
     // Max end time

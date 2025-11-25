@@ -4,10 +4,15 @@ import { DAYS, DAY_ABBR_ES } from '../../types/filter';
 import { timeToMinutes } from '../../utils/timeFormatter';
 import CourseDetailsModal from './CourseDetailsModal';
 import SectionSelectorModal from './SectionSelectorModal';
+import TimeBlockOverlay from './TimeBlockOverlay';
 import { GroupedSchedule, GroupedCourseSlot } from '../../utils/scheduleGrouping';
+import { TimeBlock } from '../../types/timeBlock';
 
 interface WeeklyGridProps {
   groupedSchedule: GroupedSchedule;
+  timeBlocks?: TimeBlock[];
+  onRemoveTimeBlock?: (blockId: string) => void;
+  onEditTimeBlock?: (block: TimeBlock) => void;
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7 AM to 8 PM
@@ -20,7 +25,12 @@ const COLORS = [
   'bg-indigo-100 border-indigo-300 text-indigo-900',
 ];
 
-export default function WeeklyGrid({ groupedSchedule }: WeeklyGridProps) {
+export default function WeeklyGrid({ 
+  groupedSchedule, 
+  timeBlocks = [], 
+  onRemoveTimeBlock,
+  onEditTimeBlock
+}: WeeklyGridProps) {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectorSlot, setSelectorSlot] = useState<GroupedCourseSlot | null>(null);
   
@@ -222,6 +232,13 @@ export default function WeeklyGrid({ groupedSchedule }: WeeklyGridProps) {
                   </div>
                 );
               })}
+              
+              {/* Time Blocks Overlay */}
+              <TimeBlockOverlay 
+                blocks={timeBlocks.filter(block => block.day === day)}
+                onRemoveBlock={onRemoveTimeBlock || (() => {})}
+                onEditBlock={onEditTimeBlock || (() => {})}
+              />
             </div>
           ))}
         </div>
