@@ -80,7 +80,11 @@ export default function AddTimeBlockModal({
   };
 
   const toggleDay = (day: DayOfWeek) => {
-    if (editBlock) return; // Can't change day in edit mode
+    // In edit mode, only allow single day selection
+    if (editBlock) {
+      setSelectedDays([day]);
+      return;
+    }
     
     if (selectedDays.includes(day)) {
       setSelectedDays(selectedDays.filter(d => d !== day));
@@ -131,38 +135,28 @@ export default function AddTimeBlockModal({
           {/* Day Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {editBlock ? 'Día de la semana' : 'Días de la semana (puedes seleccionar varios)'}
+              {editBlock ? 'Día de la semana (solo uno)' : 'Días de la semana (puedes seleccionar varios)'}
             </label>
-            {editBlock ? (
-              <select
-                value={selectedDays[0] || 'monday'}
-                onChange={(e) => setSelectedDays([e.target.value as DayOfWeek])}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                disabled
-              >
-                {DAYS.map((d) => (
-                  <option key={d} value={d}>
-                    {DAY_NAMES_ES[d]}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {DAYS.map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => toggleDay(d)}
-                    className={`px-3 py-2 rounded-lg border-2 font-medium text-sm transition-colors ${
-                      selectedDays.includes(d)
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
-                    }`}
-                  >
-                    {DAY_NAMES_ES[d]}
-                  </button>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              {DAYS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => toggleDay(d)}
+                  className={`px-3 py-2 rounded-lg border-2 font-medium text-sm transition-colors ${
+                    selectedDays.includes(d)
+                      ? 'border-red-500 bg-red-50 text-red-700'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  {DAY_NAMES_ES[d]}
+                </button>
+              ))}
+            </div>
+            {editBlock && (
+              <p className="text-xs text-gray-500 mt-1">
+                En modo edición solo puedes seleccionar un día
+              </p>
             )}
           </div>
 

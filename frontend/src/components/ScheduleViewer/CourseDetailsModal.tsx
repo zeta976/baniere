@@ -1,12 +1,24 @@
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { Course } from '../../types/course';
 import { DAY_NAMES_ES, DayOfWeek } from '../../types/filter';
 
 interface CourseDetailsModalProps {
   course: Course | null;
   onClose: () => void;
+  onRequireSection?: (crn: string) => void;
+  onForbidSection?: (crn: string) => void;
+  isRequired?: boolean;
+  isForbidden?: boolean;
 }
 
-export default function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps) {
+export default function CourseDetailsModal({ 
+  course, 
+  onClose,
+  onRequireSection,
+  onForbidSection,
+  isRequired = false,
+  isForbidden = false
+}: CourseDetailsModalProps) {
   if (!course) return null;
 
   const formatTime = (time: string): string => {
@@ -186,12 +198,50 @@ export default function CourseDetailsModal({ course, onClose }: CourseDetailsMod
             <p className="text-xs text-gray-500">
               CRN: {course.courseReferenceNumber}
             </p>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Cerrar
-            </button>
+            <div className="flex gap-2">
+              {onRequireSection && (
+                <button
+                  onClick={() => {
+                    onRequireSection(course.courseReferenceNumber);
+                    onClose();
+                  }}
+                  disabled={isForbidden}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+                    isRequired
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-300'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={isRequired ? 'Quitar como obligatoria' : 'Marcar como obligatoria'}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  {isRequired ? 'Obligatoria' : 'Requerir'}
+                </button>
+              )}
+              {onForbidSection && (
+                <button
+                  onClick={() => {
+                    onForbidSection(course.courseReferenceNumber);
+                    onClose();
+                  }}
+                  disabled={isRequired}
+                  className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+                    isForbidden
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-300'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={isForbidden ? 'Quitar exclusión' : 'Excluir sección'}
+                >
+                  <XCircle className="w-4 h-4" />
+                  {isForbidden ? 'Excluida' : 'Excluir'}
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       </div>

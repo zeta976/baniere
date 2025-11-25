@@ -1,19 +1,37 @@
 import { useState } from 'react';
 import { Clock, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
-import { useFilters } from '../../hooks/useFilters';
 import { DAYS, DAY_NAMES_ES } from '../../types/filter';
+import { ScheduleFilters } from '../../types/schedule';
 import Input from '../common/Input';
+import TimeBlocksList from './TimeBlocksList';
+import SectionConstraintsList from './SectionConstraintsList';
+import { TimeBlock } from '../../types/timeBlock';
 
-export default function FilterPanel() {
-  const { filters, updateFilter } = useFilters();
+interface FilterPanelProps {
+  filters: ScheduleFilters;
+  onUpdateFilter: <K extends keyof ScheduleFilters>(key: K, value: ScheduleFilters[K]) => void;
+  timeBlocks?: TimeBlock[];
+  onAddTimeBlock?: () => void;
+  onEditTimeBlock?: (block: TimeBlock) => void;
+  onRemoveTimeBlock?: (blockId: string) => void;
+}
+
+export default function FilterPanel({
+  filters,
+  onUpdateFilter,
+  timeBlocks = [],
+  onAddTimeBlock,
+  onEditTimeBlock,
+  onRemoveTimeBlock
+}: FilterPanelProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const toggleFreeDay = (day: string) => {
     const current = filters.freeDays || [];
     if (current.includes(day)) {
-      updateFilter('freeDays', current.filter(d => d !== day));
+      onUpdateFilter('freeDays', current.filter(d => d !== day));
     } else {
-      updateFilter('freeDays', [...current, day]);
+      onUpdateFilter('freeDays', [...current, day]);
     }
   };
 
@@ -27,7 +45,7 @@ export default function FilterPanel() {
           <input
             type="checkbox"
             checked={filters.onlyOpenSections || false}
-            onChange={(e) => updateFilter('onlyOpenSections', e.target.checked)}
+            onChange={(e) => onUpdateFilter('onlyOpenSections', e.target.checked)}
             className="rounded text-primary-600 focus:ring-primary-500"
           />
           <span className="text-sm">Solo secciones abiertas</span>
@@ -38,7 +56,7 @@ export default function FilterPanel() {
           <input
             type="checkbox"
             checked={filters.preferCompact || false}
-            onChange={(e) => updateFilter('preferCompact', e.target.checked)}
+            onChange={(e) => onUpdateFilter('preferCompact', e.target.checked)}
             className="rounded text-primary-600 focus:ring-primary-500"
           />
           <span className="text-sm">Preferir horarios compactos</span>
@@ -56,7 +74,7 @@ export default function FilterPanel() {
               value={filters.minStartTime ? `${filters.minStartTime.substring(0, 2)}:${filters.minStartTime.substring(2)}` : ''}
               onChange={(e) => {
                 const value = e.target.value.replace(':', '');
-                updateFilter('minStartTime', value || undefined);
+                onUpdateFilter('minStartTime', value || undefined);
               }}
               placeholder="Ej: 08:00"
             />
@@ -72,12 +90,38 @@ export default function FilterPanel() {
               value={filters.maxEndTime ? `${filters.maxEndTime.substring(0, 2)}:${filters.maxEndTime.substring(2)}` : ''}
               onChange={(e) => {
                 const value = e.target.value.replace(':', '');
-                updateFilter('maxEndTime', value || undefined);
+                onUpdateFilter('maxEndTime', value || undefined);
               }}
               placeholder="Ej: 18:00"
             />
           </div>
         </div>
+
+        {/* Section Constraints */}
+        <SectionConstraintsList
+          requiredSections={filters.requiredSections || []}
+          forbiddenSections={filters.forbiddenSections || []}
+          onRemoveRequired={(crn) => {
+            onUpdateFilter('requiredSections', 
+              (filters.requiredSections || []).filter(c => c !== crn)
+            );
+          }}
+          onRemoveForbidden={(crn) => {
+            onUpdateFilter('forbiddenSections', 
+              (filters.forbiddenSections || []).filter(c => c !== crn)
+            );
+          }}
+        />
+
+        {/* Time Blocks */}
+        {onAddTimeBlock && onEditTimeBlock && onRemoveTimeBlock && (
+          <TimeBlocksList
+            timeBlocks={timeBlocks}
+            onAdd={onAddTimeBlock}
+            onEdit={onEditTimeBlock}
+            onRemove={onRemoveTimeBlock}
+          />
+        )}
 
         {/* Free Days */}
         <div>
@@ -121,7 +165,7 @@ export default function FilterPanel() {
               <Input
                 type="number"
                 value={filters.maxGapMinutes || ''}
-                onChange={(e) => updateFilter('maxGapMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
+                onChange={(e) => onUpdateFilter('maxGapMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
                 placeholder="Ej: 120"
                 min="0"
               />
@@ -136,7 +180,7 @@ export default function FilterPanel() {
                 value={filters.requiredProfessors?.join(', ') || ''}
                 onChange={(e) => {
                   const value = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  updateFilter('requiredProfessors', value.length > 0 ? value : undefined);
+                  onUpdateFilter('requiredProfessors', value.length > 0 ? value : undefined);
                 }}
                 placeholder="Ej: García, López"
               />
@@ -151,7 +195,7 @@ export default function FilterPanel() {
                 value={filters.forbiddenProfessors?.join(', ') || ''}
                 onChange={(e) => {
                   const value = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
-                  updateFilter('forbiddenProfessors', value.length > 0 ? value : undefined);
+                  onUpdateFilter('forbiddenProfessors', value.length > 0 ? value : undefined);
                 }}
                 placeholder="Ej: Pérez, Martínez"
               />

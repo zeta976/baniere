@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { Course } from '../../types/course';
 import { DAYS, DAY_ABBR_ES } from '../../types/filter';
 import { timeToMinutes } from '../../utils/timeFormatter';
@@ -13,6 +14,10 @@ interface WeeklyGridProps {
   timeBlocks?: TimeBlock[];
   onRemoveTimeBlock?: (blockId: string) => void;
   onEditTimeBlock?: (block: TimeBlock) => void;
+  onRequireSection?: (crn: string) => void;
+  onForbidSection?: (crn: string) => void;
+  requiredSections?: string[];
+  forbiddenSections?: string[];
 }
 
 const HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 7 AM to 8 PM
@@ -29,7 +34,11 @@ export default function WeeklyGrid({
   groupedSchedule, 
   timeBlocks = [], 
   onRemoveTimeBlock,
-  onEditTimeBlock
+  onEditTimeBlock,
+  onRequireSection,
+  onForbidSection,
+  requiredSections = [],
+  forbiddenSections = []
 }: WeeklyGridProps) {
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [selectorSlot, setSelectorSlot] = useState<GroupedCourseSlot | null>(null);
@@ -190,11 +199,19 @@ export default function WeeklyGrid({
                 // Calculate width and position based on lanes
                 const widthPercent = 100 / block.totalLanes;
                 const leftPercent = (block.lane / block.totalLanes) * 100;
+                
+                // Check if this section is required or forbidden
+                const isRequired = requiredSections.includes(block.course.courseReferenceNumber);
+                const isForbidden = forbiddenSections.includes(block.course.courseReferenceNumber);
 
                 return (
                   <div
                     key={idx}
-                    className={`absolute px-2 py-1 rounded border ${block.color} overflow-hidden cursor-pointer hover:shadow-lg hover:z-10 transition-shadow`}
+                    className={`absolute px-2 py-1 rounded border ${block.color} overflow-hidden cursor-pointer hover:shadow-lg hover:z-10 transition-shadow ${
+                      isRequired ? 'ring-2 ring-green-500 ring-offset-1' : ''
+                    } ${
+                      isForbidden ? 'ring-2 ring-red-500 ring-offset-1 opacity-60' : ''
+                    }`}
                     style={{
                       top: `${topOffset}px`,
                       height: `${height}px`,
@@ -209,6 +226,16 @@ export default function WeeklyGrid({
                     <div className="text-xs font-semibold flex items-center justify-between">
                       <span className="truncate">{block.course.subjectCourse}</span>
                       <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                        {isRequired && (
+                          <span title="Sección obligatoria">
+                            <CheckCircle2 className="w-3 h-3 text-green-600" />
+                          </span>
+                        )}
+                        {isForbidden && (
+                          <span title="Sección excluida">
+                            <XCircle className="w-3 h-3 text-red-600" />
+                          </span>
+                        )}
                         {block.course.cycle && (
                           <span className="text-[10px] bg-white bg-opacity-70 px-1 rounded">
                             C{block.course.cycle}
@@ -257,6 +284,10 @@ export default function WeeklyGrid({
       <CourseDetailsModal 
         course={selectedCourse}
         onClose={() => setSelectedCourse(null)}
+        onRequireSection={onRequireSection}
+        onForbidSection={onForbidSection}
+        isRequired={selectedCourse ? requiredSections.includes(selectedCourse.courseReferenceNumber) : false}
+        isForbidden={selectedCourse ? forbiddenSections.includes(selectedCourse.courseReferenceNumber) : false}
       />
     </div>
   );

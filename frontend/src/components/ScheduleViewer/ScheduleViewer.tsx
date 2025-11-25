@@ -17,6 +17,10 @@ interface ScheduleViewerProps {
   onSaveSchedule?: (groupedSchedule: GroupedSchedule) => void;
   onUnsaveSchedule?: (scheduleId: string) => void;
   isSaved?: (scheduleId: string) => boolean;
+  onRequireSection?: (crn: string) => void;
+  onForbidSection?: (crn: string) => void;
+  requiredSections?: string[];
+  forbiddenSections?: string[];
 }
 
 export default function ScheduleViewer({ 
@@ -26,7 +30,11 @@ export default function ScheduleViewer({
   onTimeBlocksChange,
   onSaveSchedule,
   onUnsaveSchedule,
-  isSaved
+  isSaved,
+  onRequireSection,
+  onForbidSection,
+  requiredSections = [],
+  forbiddenSections = []
 }: ScheduleViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAddBlockModal, setShowAddBlockModal] = useState(false);
@@ -193,6 +201,10 @@ export default function ScheduleViewer({
           timeBlocks={timeBlocks}
           onRemoveTimeBlock={handleRemoveTimeBlock}
           onEditTimeBlock={openEditModal}
+          onRequireSection={onRequireSection}
+          onForbidSection={onForbidSection}
+          requiredSections={requiredSections}
+          forbiddenSections={forbiddenSections}
         />
       </div>
       

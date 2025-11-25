@@ -1,7 +1,6 @@
 import { X, Trash2, Calendar, Clock, BookOpen, Star } from 'lucide-react';
 import WeeklyGrid from '../ScheduleViewer/WeeklyGrid';
 import { GroupedSchedule } from '../../utils/scheduleGrouping';
-import { TimeBlock } from '../../types/timeBlock';
 
 interface SavedSchedule {
   id: string;
@@ -16,9 +15,6 @@ interface SavedSchedulesModalProps {
   savedSchedules: SavedSchedule[];
   onRemove: (scheduleId: string) => void;
   onClearAll: () => void;
-  timeBlocks?: TimeBlock[];
-  onRemoveTimeBlock?: (blockId: string) => void;
-  onEditTimeBlock?: (block: TimeBlock) => void;
 }
 
 export default function SavedSchedulesModal({
@@ -26,10 +22,7 @@ export default function SavedSchedulesModal({
   onClose,
   savedSchedules,
   onRemove,
-  onClearAll,
-  timeBlocks = [],
-  onRemoveTimeBlock,
-  onEditTimeBlock
+  onClearAll
 }: SavedSchedulesModalProps) {
   if (!isOpen) return null;
 
@@ -171,9 +164,9 @@ export default function SavedSchedulesModal({
                     <div className="bg-white p-4">
                       <WeeklyGrid 
                         groupedSchedule={groupedSchedule}
-                        timeBlocks={timeBlocks}
-                        onRemoveTimeBlock={onRemoveTimeBlock}
-                        onEditTimeBlock={onEditTimeBlock}
+                        timeBlocks={[]}
+                        onRemoveTimeBlock={undefined}
+                        onEditTimeBlock={undefined}
                       />
                     </div>
                   </div>

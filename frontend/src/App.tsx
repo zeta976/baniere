@@ -9,6 +9,7 @@ import { Schedule } from './types/schedule';
 import { TimeBlock } from './types/timeBlock';
 import { useSavedSchedules } from './hooks/useSavedSchedules';
 import SavedSchedulesModal from './components/SavedSchedules/SavedSchedulesModal';
+import AddTimeBlockModal from './components/ScheduleViewer/AddTimeBlockModal';
 
 const SELECTED_COURSES_KEY = 'baniere_selected_courses';
 
@@ -31,7 +32,9 @@ function App() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([]);
   const [showSavedModal, setShowSavedModal] = useState(false);
-  const { filters: filtersState } = useFilters();
+  const [showAddBlockModal, setShowAddBlockModal] = useState(false);
+  const [editingBlock, setEditingBlock] = useState<TimeBlock | undefined>();
+  const { filters: filtersState, updateFilter } = useFilters();
   const generator = useScheduleGenerator();
   const isFirstRender = useRef(true);
   const {
@@ -117,6 +120,20 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeBlocks]);
 
+  // Auto-regenerate when section constraints change
+  useEffect(() => {
+    if (isFirstRender.current) {
+      return;
+    }
+
+    // Only auto-regenerate if we already have schedules
+    if (schedules.length > 0 && selectedCourses.length > 0) {
+      console.log('⚡ Section constraints changed, auto-regenerating...');
+      handleGenerate(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersState.requiredSections, filtersState.forbiddenSections]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow">
@@ -152,7 +169,22 @@ function App() {
               selectedCourses={selectedCourses}
               onCoursesChange={setSelectedCourses}
             />
-            <FilterPanel />
+            <FilterPanel 
+              filters={filtersState}
+              onUpdateFilter={updateFilter}
+              timeBlocks={timeBlocks}
+              onAddTimeBlock={() => {
+                setEditingBlock(undefined);
+                setShowAddBlockModal(true);
+              }}
+              onEditTimeBlock={(block) => {
+                setEditingBlock(block);
+                setShowAddBlockModal(true);
+              }}
+              onRemoveTimeBlock={(blockId) => {
+                setTimeBlocks(timeBlocks.filter(b => b.id !== blockId));
+              }}
+            />
             <button
               onClick={() => handleGenerate(false)}
               disabled={generator.isPending || selectedCourses.length === 0}
@@ -171,6 +203,44 @@ function App() {
               onSaveSchedule={saveSchedule}
               onUnsaveSchedule={unsaveSchedule}
               isSaved={isSaved}
+              onRequireSection={(crn) => {
+                const current = filtersState.requiredSections || [];
+                const forbidden = filtersState.forbiddenSections || [];
+                
+                if (current.includes(crn)) {
+                  // Toggle off: Remove from required
+                  console.log('🔄 Removing section from required:', crn);
+                  updateFilter('requiredSections', current.filter(c => c !== crn));
+                } else {
+                  // Toggle on: Add to required, remove from forbidden if present
+                  console.log('✅ Adding section to required:', crn);
+                  updateFilter('requiredSections', [...current, crn]);
+                  if (forbidden.includes(crn)) {
+                    console.log('🔄 Removing from forbidden:', crn);
+                    updateFilter('forbiddenSections', forbidden.filter(c => c !== crn));
+                  }
+                }
+              }}
+              onForbidSection={(crn) => {
+                const current = filtersState.forbiddenSections || [];
+                const required = filtersState.requiredSections || [];
+                
+                if (current.includes(crn)) {
+                  // Toggle off: Remove from forbidden
+                  console.log('🔄 Removing section from forbidden:', crn);
+                  updateFilter('forbiddenSections', current.filter(c => c !== crn));
+                } else {
+                  // Toggle on: Add to forbidden, remove from required if present
+                  console.log('❌ Adding section to forbidden:', crn);
+                  updateFilter('forbiddenSections', [...current, crn]);
+                  if (required.includes(crn)) {
+                    console.log('🔄 Removing from required:', crn);
+                    updateFilter('requiredSections', required.filter(c => c !== crn));
+                  }
+                }
+              }}
+              requiredSections={filtersState.requiredSections || []}
+              forbiddenSections={filtersState.forbiddenSections || []}
             />
           </div>
         </div>
@@ -183,9 +253,22 @@ function App() {
         savedSchedules={savedSchedules}
         onRemove={unsaveSchedule}
         onClearAll={clearAllSaved}
-        timeBlocks={timeBlocks}
-        onRemoveTimeBlock={(blockId) => setTimeBlocks(timeBlocks.filter(b => b.id !== blockId))}
-        onEditTimeBlock={(block) => setTimeBlocks(timeBlocks.map(b => b.id === block.id ? block : b))}
+      />
+      
+      {/* Add/Edit Time Block Modal */}
+      <AddTimeBlockModal
+        isOpen={showAddBlockModal}
+        onClose={() => {
+          setShowAddBlockModal(false);
+          setEditingBlock(undefined);
+        }}
+        onAddBlock={(blocks) => {
+          setTimeBlocks([...timeBlocks, ...blocks]);
+        }}
+        editBlock={editingBlock}
+        onEditBlock={(block) => {
+          setTimeBlocks(timeBlocks.map(b => b.id === block.id ? block : b));
+        }}
       />
     </div>
   );
