@@ -90,6 +90,7 @@ function App() {
       console.log('🔍 Generating schedules with filters:', JSON.stringify(filtersWithBlocks, null, 2));
       console.log('📚 Selected courses:', selectedCourses);
       console.log('🚫 Time blocks:', timeBlocks);
+      console.log(`📋 Current schedules count: ${schedules.length}`);
     } else {
       console.log('🔄 Auto-regenerating with updated time blocks...');
     }
@@ -99,7 +100,27 @@ function App() {
       {
         onSuccess: (data) => {
           console.log(`✅ Received ${data.schedules.length} schedules`);
+          
+          if (data.schedules.length === 0) {
+            console.warn('⚠️ No schedules found! Clearing current schedules...');
+          }
+          
+          // Always update schedules, even if empty
           setSchedules(data.schedules);
+          console.log('📊 Schedules state updated');
+          
+          // Show feedback when no schedules found
+          if (data.schedules.length === 0 && !silent) {
+            alert('⚠️ No se encontraron horarios posibles con los cursos y filtros seleccionados.\n\nIntenta:\n• Quitar algún filtro restrictivo\n• Verificar que los cursos no tengan conflictos de horario\n• Revisar las secciones obligatorias/excluidas');
+          }
+        },
+        onError: (error) => {
+          console.error('❌ Error generating schedules:', error);
+          // Clear schedules on error
+          setSchedules([]);
+          if (!silent) {
+            alert('Error al generar horarios. Por favor intenta de nuevo.');
+          }
         }
       }
     );
