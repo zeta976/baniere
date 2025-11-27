@@ -55,6 +55,48 @@ function App() {
     }
   }, [selectedCourses]);
 
+  // Clean up orphaned section constraints when courses are removed
+  useEffect(() => {
+    // Build a mapping of CRN -> course code from current schedules
+    const crnToCourse = new Map<string, string>();
+    
+    for (const schedule of schedules) {
+      for (const section of schedule.sections) {
+        crnToCourse.set(section.courseReferenceNumber, section.subjectCourse);
+      }
+    }
+    
+    // If we don't have schedules yet, can't clean up (backend will ignore anyway)
+    if (crnToCourse.size === 0) return;
+    
+    // Filter required sections - keep only those from selected courses
+    const requiredSections = filtersState.requiredSections || [];
+    const validRequired = requiredSections.filter(crn => {
+      const courseCode = crnToCourse.get(crn);
+      if (!courseCode) return true; // Keep unknown CRNs (edge case)
+      return selectedCourses.includes(courseCode);
+    });
+    
+    // Filter forbidden sections - keep only those from selected courses
+    const forbiddenSections = filtersState.forbiddenSections || [];
+    const validForbidden = forbiddenSections.filter(crn => {
+      const courseCode = crnToCourse.get(crn);
+      if (!courseCode) return true; // Keep unknown CRNs (edge case)
+      return selectedCourses.includes(courseCode);
+    });
+    
+    // Update filters if any orphaned constraints were found
+    if (validRequired.length !== requiredSections.length) {
+      console.log(`🧹 Cleaning ${requiredSections.length - validRequired.length} orphaned required sections`);
+      updateFilter('requiredSections', validRequired);
+    }
+    
+    if (validForbidden.length !== forbiddenSections.length) {
+      console.log(`🧹 Cleaning ${forbiddenSections.length - validForbidden.length} orphaned forbidden sections`);
+      updateFilter('forbiddenSections', validForbidden);
+    }
+  }, [selectedCourses, schedules, filtersState.requiredSections, filtersState.forbiddenSections, updateFilter]);
+
   const handleGenerate = (silent = false) => {
     if (selectedCourses.length === 0) {
       if (!silent) {

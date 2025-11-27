@@ -10,6 +10,7 @@ import { hasConflictWithAny, buildConflictMatrix, hasConflictInMatrix } from './
 import { filterSectionsForCourse, hasPreferredProfessor } from './filterEngine';
 import { sectionToTimeIntervals } from './conflictChecker';
 import { calculateGapMinutes } from '../utils/timeUtils';
+import { isComplementaryCompatible } from './complementaryMatcher';
 
 /**
  * Calculate schedule metadata and score
@@ -172,6 +173,11 @@ function backtrack(
     const existingRefNums = currentSchedule.map(s => s.courseReferenceNumber);
     if (hasConflictInMatrix(section.courseReferenceNumber, existingRefNums, conflictMatrix)) {
       continue; // Skip conflicting section
+    }
+    
+    // Check complementary course compatibility
+    if (!isComplementaryCompatible(section, currentSchedule)) {
+      continue; // Skip incompatible complementary section
     }
     
     // Check max gap constraint
