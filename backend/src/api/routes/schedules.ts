@@ -5,10 +5,11 @@
 
 import { Router, Request, Response } from 'express';
 import { ScheduleGenerationRequest } from '../../models/Schedule';
+import { BannerCourse } from '../../models/Course';
 import { normalizeCourses } from '../../services/normalizer';
 import { groupSectionsByCourse } from '../../services/filterEngine';
 import { generateSchedules } from '../../services/generator';
-import { fetchCourseSections } from '../../services/courseApiService';
+import { fetchCourseSections, transformApiCourse } from '../../services/courseApiService';
 import { validateScheduleRequest } from '../middleware/validation';
 
 const router = Router();
@@ -25,8 +26,15 @@ router.post('/generate', validateScheduleRequest, async (req: Request, res: Resp
     console.log(`\n🔄 Generating schedules for: ${courses.join(', ')}`);
     console.log(`📋 Filters received:`, JSON.stringify(filters, null, 2));
     
-    // Fetch the requested courses fresh from the live API (real-time seats)
-    const bannerCourses = await fetchCourseSections(courses);
+    // When the browser posts raw sections from the Uniandes API, use them directly
+    // (bypasses backend geo-block and gives real-time seats). Otherwise fetch live.
+    let bannerCourses: BannerCourse[];
+    if (request.apiCourses && request.apiCourses.length > 0) {
+      bannerCourses = request.apiCourses.map(transformApiCourse);
+      console.log(`🌐 Using ${bannerCourses.length} browser-provided sections for generation`);
+    } else {
+      bannerCourses = await fetchCourseSections(courses);
+    }
     const allNormalized = normalizeCourses(bannerCourses);
     
     // Get sections for requested courses

@@ -24,6 +24,9 @@ export interface ScheduleGenerationRequest {
   courses: string[]; // Array of subjectCourse codes (e.g., ["ADMI1101", "MATE1203"])
   filters: ScheduleFilters;
   maxResults?: number;
+  // Raw sections fetched by the browser from the Uniandes API. When present,
+  // the backend generates from these instead of fetching itself.
+  apiCourses?: ApiCourse[];
 }
 
 export interface TimeBlock {
