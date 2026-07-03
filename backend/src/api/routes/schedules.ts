@@ -4,21 +4,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import fs from 'fs/promises';
-import { BannerResponse } from '../../models/Course';
 import { ScheduleGenerationRequest } from '../../models/Schedule';
 import { normalizeCourses } from '../../services/normalizer';
 import { groupSectionsByCourse } from '../../services/filterEngine';
 import { generateSchedules } from '../../services/generator';
+import { fetchCourseSections } from '../../services/courseApiService';
 import { validateScheduleRequest } from '../middleware/validation';
-import { config } from '../../config';
 
 const router = Router();
-
-async function loadCourses(): Promise<BannerResponse> {
-  const data = await fs.readFile(config.coursesJsonPath, 'utf-8');
-  return JSON.parse(data) as BannerResponse;
-}
 
 /**
  * POST /api/schedules/generate
@@ -32,9 +25,9 @@ router.post('/generate', validateScheduleRequest, async (req: Request, res: Resp
     console.log(`\n🔄 Generating schedules for: ${courses.join(', ')}`);
     console.log(`📋 Filters received:`, JSON.stringify(filters, null, 2));
     
-    // Load all courses
-    const bannerData = await loadCourses();
-    const allNormalized = normalizeCourses(bannerData.data);
+    // Fetch the requested courses fresh from the live API (real-time seats)
+    const bannerCourses = await fetchCourseSections(courses);
+    const allNormalized = normalizeCourses(bannerCourses);
     
     // Get sections for requested courses
     const grouped = groupSectionsByCourse(allNormalized);

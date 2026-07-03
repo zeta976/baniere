@@ -94,6 +94,53 @@ export interface BannerResponse {
   data: BannerCourse[];
 }
 
+// Live "oferta de cursos" API structure (ofertadecursos.uniandes.edu.co/api/courses)
+export interface ApiSchedule {
+  time_ini: string | null;
+  time_fin: string | null;
+  classroom: string | null;
+  l: string | null; // Lunes / Monday
+  m: string | null; // Martes / Tuesday
+  i: string | null; // mIércoles / Wednesday
+  j: string | null; // Jueves / Thursday
+  v: string | null; // Viernes / Friday
+  s: string | null; // Sábado / Saturday
+  d: string | null; // Domingo / Sunday
+  date_ini: string | null;
+  date_fin: string | null;
+  building: string | null;
+  patron: string | null;
+}
+
+export interface ApiInstructor {
+  name: string;
+  ind: string | null; // "Y" => primary instructor
+}
+
+export interface ApiCourse {
+  rn: string;
+  llave: string;
+  nrc: string;
+  class: string; // subject prefix (e.g. "ISIS")
+  course: string; // course number (e.g. "1226")
+  section: string;
+  credits: string;
+  title: string;
+  maxenrol: string;
+  enrolled: string;
+  term: string;
+  ptrm: string;
+  ptrmdesc: string;
+  seatsavail: string;
+  campus: string;
+  projenrl: string;
+  schedules: ApiSchedule[];
+  instructors: ApiInstructor[];
+  levele: string | null;
+  comments: string | null;
+  attr: unknown[];
+}
+
 // Normalized structure for frontend API
 export interface NormalizedCourse {
   id: number;

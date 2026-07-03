@@ -6,37 +6,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import fs from 'fs/promises';
-import path from 'path';
 import he from 'he';
 import { normalizeCourses } from '../../services/normalizer';
 import { groupSectionsByCourse } from '../../services/filterEngine';
+import { loadCourses } from '../../services/courseApiService';
 import { textContainsQuery } from '../../utils/textUtils';
-import { config } from '../../config';
-import { BannerResponse, BannerCourse } from '../../models/Course';
+import { BannerCourse } from '../../models/Course';
 
 const router = Router();
-
-// In-memory cache for courses (would use Redis in production)
-let coursesCache: BannerResponse | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-
-async function loadCourses(): Promise<BannerResponse> {
-  const now = Date.now();
-  
-  // Return cached data if fresh
-  if (coursesCache && (now - cacheTimestamp) < CACHE_TTL) {
-    return coursesCache;
-  }
-  
-  // Load from file
-  const data = await fs.readFile(config.coursesJsonPath, 'utf-8');
-  coursesCache = JSON.parse(data) as BannerResponse;
-  cacheTimestamp = now;
-  
-  return coursesCache;
-}
 
 /**
  * GET /api/courses
