@@ -218,9 +218,21 @@ function buildUrl(params: Record<string, string>): string {
   return `${config.courseApiUrl}?${search}`;
 }
 
+const REQUEST_TIMEOUT_MS = 20000;
+
 async function fetchApi(params: Record<string, string>): Promise<ApiCourse[]> {
   const url = buildUrl(params);
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const res = await fetch(url, {
+    headers: {
+      Accept: 'application/json, text/plain, */*',
+      'Accept-Language': 'es-CO,es;q=0.9,en;q=0.8',
+      // Some WAFs reject non-browser clients; present a browser-like UA.
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      Referer: 'https://ofertadecursos.uniandes.edu.co/'
+    },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  });
   if (!res.ok) {
     throw new Error(`Course API responded with ${res.status} ${res.statusText}`);
   }
@@ -288,13 +300,19 @@ export async function loadCourses(): Promise<BannerResponse> {
 
   try {
     const apiCourses = await fetchAllApiCourses();
+    // An empty catalog means the API is unreachable/blocked for this host
+    // (e.g. geo-restricted IP returning `200 []`). Treat it as a failure so we
+    // fall back to the local snapshot instead of caching an empty result.
+    if (apiCourses.length === 0) {
+      throw new Error('Live API returned 0 courses (likely blocked for this host)');
+    }
     const data = apiCourses.map(transformApiCourse);
     cache = { success: true, totalCount: data.length, data };
     cacheTimestamp = now;
     console.log(`✅ Loaded ${data.length} courses from live API (term ${config.term})`);
     return cache;
   } catch (error) {
-    console.error('⚠️  Live course API fetch failed, falling back:', error);
+    console.error('⚠️  Live course API fetch failed, falling back to local file:', error);
     if (cache) return cache; // serve stale cache if we have it
     return loadFromLocalFile();
   }
@@ -316,9 +334,16 @@ async function fetchOneCourse(code: string): Promise<BannerCourse[]> {
 
   const apiCourses = await fetchApi({ prefix, nameInput, limit: '500' });
   // The API matches by prefix; keep only exact subjectCourse matches.
-  return apiCourses
+  const sections = apiCourses
     .filter(c => `${c.class}${c.course}`.toUpperCase() === upper)
     .map(transformApiCourse);
+
+  // No live sections likely means the API is blocked for this host; signal a
+  // failure so the caller falls back to the local snapshot for this code.
+  if (sections.length === 0) {
+    throw new Error(`Live API returned no sections for ${upper}`);
+  }
+  return sections;
 }
 
 /**

@@ -1,4 +1,4 @@
-import { Course } from './course';
+import { Course, ApiCourse } from './course';
 
 export interface Schedule {
   id: string;
@@ -41,6 +41,9 @@ export interface GenerateScheduleRequest {
   courses: string[];
   filters: ScheduleFilters;
   maxResults?: number;
+  // Raw sections fetched by the browser from the Uniandes API (real-time seats).
+  // When present, the backend generates from these instead of fetching itself.
+  apiCourses?: ApiCourse[];
 }
 
 export interface GenerateScheduleResponse {

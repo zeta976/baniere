@@ -1,4 +1,4 @@
-import { NormalizedCourse } from './Course';
+import { NormalizedCourse, ApiCourse } from './Course';
 
 /**
  * Schedule generation types

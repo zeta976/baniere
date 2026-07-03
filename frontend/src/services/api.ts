@@ -5,6 +5,7 @@
 import axios from 'axios';
 import { Course, CourseSearchResult } from '../types/course';
 import { GenerateScheduleRequest, GenerateScheduleResponse } from '../types/schedule';
+import * as uniandesApi from './uniandesApi';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
@@ -33,59 +34,39 @@ api.interceptors.response.use(
   }
 );
 
+/**
+ * Course data is fetched directly from the Uniandes API in the browser.
+ * Colombian IPs can reach it and it is CORS-enabled, so this works even when
+ * the backend host (e.g. Render) is geo-blocked, and gives real-time seats.
+ */
 export const coursesApi = {
-  /**
-   * Search courses by code or title
-   */
-  search: async (query: string): Promise<CourseSearchResult[]> => {
-    const response = await api.get<{ success: boolean; data: CourseSearchResult[] }>(
-      `/courses/search`,
-      { params: { q: query } }
-    );
-    return response.data.data;
-  },
+  /** Search courses by code or title */
+  search: (query: string): Promise<CourseSearchResult[]> => uniandesApi.searchCourses(query),
 
-  /**
-   * Get all sections for a course code
-   */
-  getSections: async (courseCode: string): Promise<Course[]> => {
-    const response = await api.get<{ success: boolean; data: Course[] }>(
-      `/courses/${courseCode}`
-    );
-    return response.data.data;
-  },
+  /** Get all sections for a course code */
+  getSections: (courseCode: string): Promise<Course[]> => uniandesApi.getSections(courseCode),
 
-  /**
-   * Get all courses
-   */
-  getAll: async (filters?: {
-    term?: string;
-    subject?: string;
-    openOnly?: boolean;
-  }): Promise<Course[]> => {
-    const response = await api.get<{ success: boolean; data: Course[] }>('/courses', {
-      params: filters
-    });
-    return response.data.data;
-  },
+  /** Get all courses */
+  getAll: (filters?: { term?: string; subject?: string; openOnly?: boolean }): Promise<Course[]> =>
+    uniandesApi.getAllCourses(filters),
 
-  /**
-   * Get list of subjects
-   */
-  getSubjects: async (): Promise<string[]> => {
-    const response = await api.get<{ success: boolean; data: string[] }>(
-      '/courses/subjects/list'
-    );
-    return response.data.data;
-  }
+  /** Get list of subjects */
+  getSubjects: (): Promise<string[]> => uniandesApi.getSubjects()
 };
 
 export const schedulesApi = {
   /**
-   * Generate schedules
+   * Generate schedules.
+   * The browser fetches the selected courses' sections from the Uniandes API
+   * (real-time seats) and posts them to the backend, which runs the schedule
+   * generation engine on the provided data.
    */
   generate: async (request: GenerateScheduleRequest): Promise<GenerateScheduleResponse> => {
-    const response = await api.post<GenerateScheduleResponse>('/schedules/generate', request);
+    const apiCourses = await uniandesApi.fetchRawSections(request.courses);
+    const response = await api.post<GenerateScheduleResponse>('/schedules/generate', {
+      ...request,
+      apiCourses
+    });
     return response.data;
   }
 };
